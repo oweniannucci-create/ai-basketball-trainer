@@ -1,225 +1,252 @@
 import streamlit as st
 from groq import Groq
 from datetime import datetime
-import time
 import random
+import time
 
-# ----------------------------
-# PAGE SETUP
-# ----------------------------
-st.set_page_config(page_title="D1 AI Trainer", layout="wide", page_icon="🏀")
+# =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(
+    page_title="D1 Trainer AI",
+    layout="centered"
+)
 
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-
-# ----------------------------
-# STYLE
-# ----------------------------
+# =========================
+# ADVANCED UI STYLE (GYM / NBA AESTHETIC)
+# =========================
 st.markdown("""
 <style>
-.main {
-    background-color: #0b0f1a;
+
+/* animated dark gym background */
+.stApp {
+    background: radial-gradient(circle at top, #1a1a1a, #0a0a0a);
     color: white;
+    font-family: 'Arial';
 }
 
-.block-container {
-    padding-top: 2rem;
+/* main title glow */
+h1, h2, h3 {
+    color: #ffffff;
+    letter-spacing: 0.5px;
 }
 
+/* input fields */
+input, textarea, select {
+    border-radius: 10px !important;
+}
+
+/* buttons */
+.stButton > button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #ff3d00, #ff9100);
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    border: none;
+}
+
+/* card design */
 .card {
     background: rgba(255,255,255,0.06);
-    padding: 15px;
-    border-radius: 12px;
-    margin-bottom: 12px;
     border: 1px solid rgba(255,255,255,0.1);
-    white-space: pre-wrap;
+    padding: 15px;
+    border-radius: 15px;
+    margin-bottom: 12px;
+    backdrop-filter: blur(10px);
 }
+
+/* section headers */
+.section-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #ffb74d;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------------------
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+
+# =========================
 # SESSION STATE
-# ----------------------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
+# =========================
 if "user" not in st.session_state:
-    st.session_state.user = ""
-
-if "history" not in st.session_state:
-    st.session_state.history = {}
+    st.session_state.user = None
 
 if "workout" not in st.session_state:
     st.session_state.workout = None
 
-# ----------------------------
+if "history" not in st.session_state:
+    st.session_state.history = {}
+
+# =========================
 # LOGIN
-# ----------------------------
-if not st.session_state.logged_in:
-    st.title("🏀 D1 AI Trainer Login")
+# =========================
+if st.session_state.user is None:
+    st.title("🏀 D1 TRAINER AI")
 
     name = st.text_input("Enter your name")
 
     if st.button("Enter Gym"):
-        if name:
-            st.session_state.user = name
+        if name.strip():
+            st.session_state.user = name.strip()
 
             if name not in st.session_state.history:
                 st.session_state.history[name] = []
 
-            st.session_state.logged_in = True
             st.rerun()
 
     st.stop()
 
-# ----------------------------
-# NAVIGATION
-# ----------------------------
-tab = st.radio("Navigation", ["Home", "Workout", "History"], horizontal=True)
+user = st.session_state.user
 
-# ----------------------------
-# BIBLE VERSE
-# ----------------------------
-verses = [
-    "Philippians 4:13 — I can do all things through Christ.",
-    "Isaiah 40:31 — They will run and not grow weary.",
-    "Proverbs 3:5 — Trust the process.",
-]
+# =========================
+# TABS
+# =========================
+home, workout, history = st.tabs(["🏠 Home", "🏀 Workout", "📊 History"])
 
-# =========================================================
-# HOME
-# =========================================================
-if tab == "Home":
+# =========================
+# HOME TAB
+# =========================
+with home:
+    st.title("🏀 D1 TRAINER AI")
 
-    st.markdown("## 🏀 D1 AI TRAINER")
+    st.markdown("### 📖 Daily Focus")
+    st.info("Philippians 4:13 — I can do all things through Christ who strengthens me.")
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📖 Daily Bible Verse")
-    st.write(random.choice(verses))
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("### 🧠 Build Your Workout")
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("🔥 Ready to Train")
-    st.write("Go to Workout tab → build your D1 workout")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# =========================================================
-# WORKOUT TAB
-# =========================================================
-if tab == "Workout":
-
-    st.markdown("## 🏀 Build Your Workout")
-
-    focus = st.text_input("🎯 What are you working on today?")
-    struggle = st.text_input("📉 What are you struggling with?")
-    energy = st.slider("⚡ Energy Level", 1, 10, 6)
-
-    time_available = st.selectbox("⏱ Time", ["45 min", "60 min", "90 min"])
-    court = st.selectbox("🏀 Court", ["Driveway", "Half Court", "Full Court"])
+    focus = st.text_input("What are you working on today?")
+    struggle = st.text_input("What are you struggling with?")
+    body = st.text_input("Body status (sore / injury / good)")
+    time_available = st.selectbox("Time", ["45 min", "60 min", "90 min"])
+    court = st.selectbox("Court", ["Driveway", "Half Court", "Full Court"])
+    energy = st.slider("Energy", 1, 10, 5)
 
     partner = st.selectbox(
-        "🤝 Partner Type",
+        "Training Partner",
         ["No partner", "Rebounding partner", "Live defender partner"]
     )
 
-    body = st.text_input("🦵 Body status (sore, tight, injury?)")
-
-    # ----------------------------
-    # GENERATE BUTTON
-    # ----------------------------
-    if st.button("🔥 Generate Workout"):
-
-        progress = st.progress(0)
+    # =========================
+    # AI WORKOUT GENERATOR
+    # =========================
+    def generate_workout():
+        bar = st.progress(0)
 
         for i in range(100):
             time.sleep(0.01)
-            progress.progress(i + 1)
+            bar.progress(i + 1)
 
         prompt = f"""
-You are an elite NBA skill trainer.
-
-Create a D1 basketball workout.
+You are an elite NBA skill development trainer.
 
 PLAYER:
 Focus: {focus}
 Struggle: {struggle}
-Energy: {energy}/10
+Body: {body}
 Time: {time_available}
 Court: {court}
+Energy: {energy}
 Partner: {partner}
-Body: {body}
 
 RULES:
-- Adjust for injury/soreness if needed
-- Include partner drills if partner exists
-- Must include LIVE READ decision drill
-- Must include sets, reps, or timed work
-- Must be detailed and game realistic
+- Adjust based on focus + struggle
+- If injury/sore → reduce intensity
+- Partner changes drills completely
+- Include reps, sets, seconds
+- VERY CLEAR structure
 
-FORMAT:
+FORMAT EXACTLY:
 
-WARM-UP
-SKILL WORK
-PARTNER WORK (if any)
-PRESSURE DRILLS
-GAME SIMULATION
-FINISHER
-COACH NOTES
+WARM-UP:
+SKILL WORK:
+PARTNER WORK:
+PRESSURE WORK:
+GAME SIMULATION:
+FINISHER:
 """
 
-        response = client.chat.completions.create(
+        res = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a D1 basketball trainer."},
+                {"role": "system", "content": "Elite NBA trainer creating structured workouts."},
                 {"role": "user", "content": prompt}
             ]
         )
 
-        workout = response.choices[0].message.content
+        return res.choices[0].message.content
 
-        # SAVE
-        st.session_state.workout = workout
-        st.session_state.history[st.session_state.user].append({
-            "time": str(datetime.now()),
-            "focus": focus,
-            "workout": workout
-        })
+    if st.button("🔥 GENERATE WORKOUT"):
+        with st.spinner("Building your D1 workout..."):
+            st.session_state.workout = generate_workout()
 
-        st.success("Workout Created 💪")
-        st.info("Go to Workout tab to view your plan")
+            st.session_state.history[user].append({
+                "time": datetime.now().strftime("%H:%M"),
+                "workout": st.session_state.workout
+            })
 
-# ----------------------------
-# DISPLAY WORKOUT (FIXED)
-# ----------------------------
-if tab == "Workout" and st.session_state.workout:
+            st.success("Workout ready → Go to Workout tab 🏀")
 
-    st.markdown("## 🧱 Your Training Plan")
+# =========================
+# WORKOUT TAB (CLEAN SEPARATED CARDS)
+# =========================
+with workout:
+    st.title("🏀 YOUR WORKOUT")
 
-    sections = st.session_state.workout.split("\n\n")
+    if not st.session_state.workout:
+        st.info("No workout yet.")
+    else:
 
-    for sec in sections:
-        if sec.strip():
+        sections = {
+            "WARM-UP": "",
+            "SKILL WORK": "",
+            "PARTNER WORK": "",
+            "PRESSURE WORK": "",
+            "GAME SIMULATION": "",
+            "FINISHER": ""
+        }
+
+        current = None
+
+        for line in st.session_state.workout.split("\n"):
+            line_upper = line.strip().upper()
+
+            if line_upper in sections:
+                current = line_upper
+                continue
+
+            if current:
+                sections[current] += line + "\n"
+
+        for title, content in sections.items():
+            if content.strip():
+                st.markdown(f"""
+                <div class="card">
+                    <div class="section-title">{title}</div>
+                    <pre style="white-space:pre-wrap; color:white;">{content}</pre>
+                </div>
+                """, unsafe_allow_html=True)
+
+# =========================
+# HISTORY TAB
+# =========================
+with history:
+    st.title("📊 HISTORY")
+
+    data = st.session_state.history.get(user, [])
+
+    if not data:
+        st.info("No workouts yet.")
+    else:
+        for w in reversed(data):
             st.markdown(f"""
             <div class="card">
-            {sec}
+                <b>🕒 {w['time']}</b>
+                <pre style="white-space:pre-wrap;">{w['workout']}</pre>
             </div>
             """, unsafe_allow_html=True)
-
-# =========================================================
-# HISTORY TAB
-# =========================================================
-if tab == "History":
-
-    st.markdown("## 📊 Your Workouts")
-
-    user_history = st.session_state.history.get(st.session_state.user, [])
-
-    if not user_history:
-        st.info("No workouts yet")
-    else:
-        for w in reversed(user_history):
-
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.write("🕒", w["time"])
-            st.write("🎯", w["focus"])
-            st.text_area("Workout", w["workout"], height=250, key=w["time"])
-            st.markdown("</div>", unsafe_allow_html=True)
