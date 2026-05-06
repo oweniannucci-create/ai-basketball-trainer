@@ -23,9 +23,6 @@ if "workout" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = {}
 
-if "tab" not in st.session_state:
-    st.session_state.tab = "home"
-
 # =========================
 # DATA
 # =========================
@@ -44,7 +41,7 @@ quotes = [
 ]
 
 # =========================
-# LOGIN SYSTEM
+# LOGIN
 # =========================
 if st.session_state.user is None:
     st.title("🏀 D1 AI Trainer Login")
@@ -52,7 +49,7 @@ if st.session_state.user is None:
     username = st.text_input("Enter your name")
 
     if st.button("Enter Training Center"):
-        if username.strip() != "":
+        if username.strip():
             st.session_state.user = username.strip()
 
             if username not in st.session_state.history:
@@ -60,13 +57,14 @@ if st.session_state.user is None:
 
             st.rerun()
         else:
-            st.warning("Enter a valid name")
+            st.warning("Please enter a name")
+
     st.stop()
 
 user = st.session_state.user
 
 # =========================
-# NAV TABS (CONTROLLED)
+# TABS
 # =========================
 home_tab, workout_tab, history_tab = st.tabs(["🏠 Home", "🏀 Workout", "📊 History"])
 
@@ -79,15 +77,23 @@ with home_tab:
     st.subheader("📖 Daily Bible Verse")
     st.info(random.choice(bible_verses))
 
-    st.markdown("### 🏀 Build Your Workout")
+    st.markdown("## 🏀 Build Your Workout")
 
     focus = st.text_input("What are you working on today?")
+    struggle = st.text_input("What are you struggling with?")
     time_available = st.selectbox("Time Available", ["45 min", "60 min", "90 min"])
     court = st.selectbox("Court Type", ["Driveway", "Half Court", "Full Court"])
     energy = st.slider("Energy Level", 1, 10, 5)
-    struggle = st.text_input("What are you struggling with?")
     body = st.text_input("Body status (sore / injury / tight / none)")
 
+    partner = st.selectbox(
+        "Do you have a partner?",
+        ["No partner", "Rebounding partner", "Live defender partner"]
+    )
+
+    # =========================
+    # WORKOUT GENERATION
+    # =========================
     def build_workout():
         progress = st.progress(0)
 
@@ -98,32 +104,49 @@ with home_tab:
         prompt = f"""
 You are an elite D1 basketball trainer.
 
-Create a structured workout with:
-- warmup
-- skill work
-- pressure drills
-- game simulation
-- challenge
-
 PLAYER INFO:
 Focus: {focus}
+Struggle: {struggle}
 Time: {time_available}
 Court: {court}
 Energy: {energy}
-Struggle: {struggle}
 Body: {body}
+Partner: {partner}
 
-IMPORTANT:
-If body says sore or injury, reduce intensity and include recovery movements.
+RULES:
+- Adapt everything to focus and struggle
+- If injury/sore → reduce intensity + add recovery work
+- Partner must change drill structure
+- Include sets, reps, and timed work (seconds)
+- Explain HOW to do each drill
 
-FORMAT EACH SECTION CLEARLY:
-- include sets, reps, and timed work (seconds)
-- explain how to do each drill
+FORMAT:
+
+WARM-UP:
+- detailed movement prep
+
+SKILL WORK:
+- structured drills with reps + coaching cues
+
+PARTNER WORK:
+- adapted to selected partner type
+
+PRESSURE WORK:
+- timed or score-based
+
+GAME SIMULATION:
+- live decision scenarios
+
+FINISHER:
+- competitive challenge
 """
 
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[
+                {"role": "system", "content": "You are an elite NBA skill development trainer."},
+                {"role": "user", "content": prompt}
+            ]
         )
 
         return response.choices[0].message.content
@@ -134,16 +157,12 @@ FORMAT EACH SECTION CLEARLY:
 
             st.session_state.workout = workout
 
-            # save to history
             st.session_state.history[user].append({
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "workout": workout
             })
 
             st.success("Workout created! Go to Workout tab 🏀")
-
-            st.session_state.tab = "workout"
-            st.rerun()
 
 # =========================
 # WORKOUT TAB (CLEAN UI BOXES)
@@ -152,30 +171,30 @@ with workout_tab:
     st.title("🏀 Your D1 Workout")
 
     if not st.session_state.workout:
-        st.info("No workout yet. Go generate one on Home.")
+        st.info("No workout yet. Generate one from Home.")
     else:
         sections = st.session_state.workout.split("\n")
 
-        current_box = []
-        section_title = "Workout"
+        current_section = []
+        title = "Workout"
+
+        def render_box(title, content):
+            with st.container():
+                st.markdown(f"### 🧱 {title}")
+                st.markdown("\n".join(content))
+                st.markdown("---")
 
         for line in sections:
-            if any(keyword in line.lower() for keyword in ["warm", "skill", "pressure", "game", "challenge"]):
-                if current_box:
-                    with st.container():
-                        st.markdown(f"### 🧱 {section_title}")
-                        st.markdown("\n".join(current_box))
-                        st.markdown("---")
-                    current_box = []
+            if any(x in line.lower() for x in ["warm", "skill", "partner", "pressure", "game", "finish"]):
+                if current_section:
+                    render_box(title, current_section)
+                    current_section = []
+                title = line.strip()
 
-                section_title = line.strip()
+            current_section.append(line)
 
-            current_box.append(line)
-
-        if current_box:
-            with st.container():
-                st.markdown(f"### 🧱 {section_title}")
-                st.markdown("\n".join(current_box))
+        if current_section:
+            render_box(title, current_section)
 
         st.info(random.choice(quotes))
 
@@ -187,7 +206,7 @@ with history_tab:
 
     user_history = st.session_state.history.get(user, [])
 
-    if len(user_history) == 0:
+    if not user_history:
         st.info("No workouts yet.")
     else:
         for w in reversed(user_history):
