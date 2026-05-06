@@ -19,29 +19,26 @@ if "history" not in st.session_state:
 if "workout" not in st.session_state:
     st.session_state.workout = None
 
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = "🏠 Home"
+
+if "focus" not in st.session_state:
+    st.session_state.focus = ""
+
 # ----------------------------
 # DATA
 # ----------------------------
-bible_verses = [
-    "Philippians 4:13 — I can do all things through Christ who strengthens me.",
-    "Isaiah 40:31 — Those who hope in the Lord will renew their strength.",
-    "Proverbs 3:5 — Trust in the Lord with all your heart.",
-    "Joshua 1:9 — Be strong and courageous."
-]
-
 quotes = [
-    "Greatness is built when no one is watching.",
     "Discipline beats motivation every time.",
+    "Greatness is built in silence.",
     "You don’t rise to talent, you fall to effort.",
     "Comfort kills progress."
 ]
 
 # ----------------------------
-# TAB LAYOUT
+# TABS
 # ----------------------------
-home, workout_tab, history_tab, plan_tab = st.tabs([
-    "🏠 Home", "🏀 Workout", "📊 History", "📅 Weekly Plan"
-])
+home, workout, history = st.tabs(["🏠 Home", "🏀 Workout", "📊 History"])
 
 # =========================================================
 # HOME TAB
@@ -49,81 +46,87 @@ home, workout_tab, history_tab, plan_tab = st.tabs([
 with home:
     st.title("🏀 D1 AI Trainer")
 
-    st.subheader("📖 Daily Bible Verse")
-    st.info(random.choice(bible_verses))
+    st.caption("Build like a college hooper. Train like a pro.")
 
-    st.markdown("## 🔥 Build Your Workout")
+    st.markdown("---")
 
-    col1, col2 = st.columns(2)
+    # ----------------------------
+    # INPUTS
+    # ----------------------------
+    focus = st.text_input("🎯 What are you working on today?", value=st.session_state.focus)
 
-    with col1:
-        focus = st.text_input("🎯 What are you working on today?")
-        time = st.selectbox("⏱ Time Available", ["45 min", "60 min", "90 min"])
-        court = st.selectbox("🏀 Court Type", ["Driveway", "Half Court", "Full Court"])
+    time = st.selectbox("⏱ Time Available", ["45 min", "60 min", "90 min"])
+    court = st.selectbox("🏀 Court Type", ["Driveway", "Half Court", "Full Court"])
+    energy = st.slider("⚡ Energy Level", 1, 10, 6)
 
-    with col2:
-        energy = st.slider("⚡ Energy Level", 1, 10, 5)
-        struggle = st.text_input("📉 Struggle (optional)")
-        body = st.text_input("🦵 Body status (sore, tight, pain?)")
+    partner = st.radio("🤝 Partner Available?", ["No", "Yes"])
 
-    def build_workout():
+    body = st.text_input("🦵 Body Status (sore / tight / pain / healthy)")
+
+    st.markdown("---")
+
+    # ----------------------------
+    # BUILD WORKOUT BUTTON
+    # ----------------------------
+    if st.button("🔥 BUILD D1 WORKOUT"):
+
+        st.session_state.focus = focus
+
         prompt = f"""
 You are an elite D1 basketball trainer.
 
-Create a structured basketball workout.
+Create a structured workout.
 
 PLAYER INFO:
 Focus: {focus}
 Time: {time}
 Court: {court}
 Energy: {energy}/10
-Struggle: {struggle}
+Partner: {partner}
 Body Status: {body}
 
 RULES:
-- If sore or injured, adjust intensity
+- If partner = Yes → include 1v1 / live defense drills
+- If body = sore/pain → include recovery + mobility focus
 - Must include LIVE READ drill
-- Must include pressure situations
-- Must feel like real college training
+- Must feel like college-level training
 
-FORMAT EXACTLY:
-Warm-Up:
-Skill Work:
-Pressure Work:
-Game Simulation:
-Challenge:
-Coaching Cues:
+FORMAT:
+Warm-Up
+Skill Work
+Pressure Work
+Game Simulation
+Challenge
 """
 
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": "You are an elite basketball trainer."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        return response.choices[0].message.content
-
-    if st.button("🔥 Build Workout"):
         with st.spinner("Building your D1 workout..."):
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are a D1 basketball trainer."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
 
-            workout = build_workout()
+            workout_text = response.choices[0].message.content
 
-            st.session_state.workout = {
+            st.session_state.workout = workout_text
+
+            st.session_state.history.append({
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "focus": focus,
-                "workout": workout
-            }
+                "workout": workout_text
+            })
 
-            st.session_state.history.append(st.session_state.workout)
+            # switch tab
+            st.session_state.active_tab = "🏀 Workout"
 
             st.success("Workout created! Go to Workout tab 👇")
 
 # =========================================================
-# WORKOUT TAB (CLEAN CARD BREAKDOWN)
+# WORKOUT TAB (CLEAN CARD UI)
 # =========================================================
-with workout_tab:
+with workout:
 
     st.title("🏀 Your D1 Workout")
 
@@ -131,90 +134,73 @@ with workout_tab:
         st.info("No workout yet. Go to Home and build one.")
     else:
 
-        w = st.session_state.workout["workout"]
+        workout = st.session_state.workout
 
-        def extract_section(title, text):
-            try:
-                return text.split(title + ":")[1].split("\n")[0].strip()
-            except:
-                return "Not generated properly"
+        # Split into sections
+        sections = workout.split("\n")
 
-        sections = {
-            "🔥 Warm-Up": "Warm-Up",
-            "🏀 Skill Work": "Skill Work",
-            "⚡ Pressure Work": "Pressure Work",
-            "🎮 Game Simulation": "Game Simulation",
-            "🏆 Challenge": "Challenge",
-            "🧠 Coaching Cues": "Coaching Cues"
-        }
+        st.markdown("### 🧱 Training Plan")
 
-        st.markdown("## 🧱 Workout Breakdown")
+        box = ""
+        for line in sections:
+            if line.strip() == "" or any(x in line.lower() for x in ["warm", "skill", "pressure", "game", "challenge"]):
+                if box:
+                    st.markdown(f"""
+                    <div style="
+                        padding:15px;
+                        border-radius:10px;
+                        background:#111;
+                        margin-bottom:10px;
+                        border:1px solid #333;">
+                        {box}
+                    </div>
+                    """, unsafe_allow_html=True)
+                    box = ""
+                box = f"**{line}**"
+            else:
+                box += f"<br>{line}"
 
-        for label, key in sections.items():
-
-            st.container().markdown(f"""
-### {label}
-
-{extract_section(key, w)}
-""")
+        if box:
+            st.markdown(f"""
+            <div style="
+                padding:15px;
+                border-radius:10px;
+                background:#111;
+                margin-bottom:10px;
+                border:1px solid #333;">
+                {box}
+            </div>
+            """, unsafe_allow_html=True)
 
         st.markdown("---")
-
         st.info(random.choice(quotes))
 
         st.download_button(
             "⬇ Download Workout",
-            w,
+            st.session_state.workout,
             file_name="d1_workout.txt"
         )
 
 # =========================================================
 # HISTORY TAB
 # =========================================================
-with history_tab:
+with history:
 
     st.title("📊 Workout History")
 
-    if not st.session_state.history:
+    if len(st.session_state.history) == 0:
         st.info("No workouts yet.")
     else:
         for w in reversed(st.session_state.history):
-            with st.container():
-                st.markdown(f"### 🕒 {w['time']}")
-                st.write(f"**Focus:** {w['focus']}")
-                st.info(w["workout"])
-                st.markdown("---")
-
-# =========================================================
-# WEEKLY PLAN TAB
-# =========================================================
-with plan_tab:
-
-    st.title("📅 Weekly Training Plan")
-
-    goal = st.text_input("What is your weekly goal?")
-
-    if st.button("Generate Weekly Plan"):
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": "You are an elite basketball trainer."},
-                {"role": "user", "content": f"Create a 7-day training plan for: {goal}"}
-            ]
-        )
-
-        plan = response.choices[0].message.content
-
-        st.write(plan)
-
-        st.download_button(
-            "⬇ Download Plan",
-            plan,
-            file_name="weekly_plan.txt"
-        )
-
-# =========================================================
-# FOOTER
-# =========================================================
-st.markdown("---")
-st.caption(random.choice(quotes))
+            st.markdown(f"""
+            <div style="
+                padding:10px;
+                border-radius:10px;
+                background:#0f0f0f;
+                border:1px solid #333;
+                margin-bottom:10px;">
+                <b>{w['time']}</b><br>
+                <b>Focus:</b> {w['focus']}<br><br>
+                <pre style="white-space:pre-wrap">{w['workout']}</pre>
+            </div>
+            """, unsafe_allow_html=True)
