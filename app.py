@@ -176,22 +176,27 @@ FORMAT:
 
 """)
 
-            st.markdown("---")
+           st.markdown("## 🧱 Your D1 Training Plan")
 
-            st.info(f"💬 {random.choice(quotes)}")
+st.markdown("### 📋 Workout")
+st.text(output)
 
-            # SAVE HISTORY
-            st.session_state.history.append({
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "focus": focus,
-                "workout": output
-            })
+st.markdown("---")
 
-            st.download_button(
-                "⬇ Download Workout",
-                output,
-                file_name="d1_workout.txt"
-            )
+st.info(f"💬 {random.choice(quotes)}")
+
+# SAVE HISTORY
+st.session_state.history.append({
+    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    "focus": focus,
+    "workout": output
+})
+
+st.download_button(
+    "⬇ Download Workout",
+    output,
+    file_name="d1_workout.txt"
+)
 
 # =========================================================
 # HISTORY TAB
