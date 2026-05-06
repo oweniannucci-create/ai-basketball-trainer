@@ -40,6 +40,22 @@ quotes = [
 ]
 
 # ----------------------------
+# GROQ FUNCTION (IMPORTANT FIX)
+# ----------------------------
+def generate_workout(prompt):
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an elite basketball skill development coach building D1-level workouts."
+            },
+            {"role": "user", "content": prompt}
+        ]
+    )
+    return response.choices[0].message.content
+
+# ----------------------------
 # TABS
 # ----------------------------
 home, workout, history, plans = st.tabs(["🏠 Home", "🏀 Workout", "📊 History", "📅 Weekly Plan"])
@@ -96,7 +112,6 @@ with workout:
         court = st.selectbox("🏀 Court", ["Driveway", "Half Court", "Full Court"])
 
     st.markdown("### Optional Context")
-
     struggle = st.text_input("📉 Struggle (optional)")
     body = st.text_input("🦵 Body status (optional)")
 
@@ -145,58 +160,37 @@ FORMAT:
 6. Coaching Cues
 """
 
-    def generate_workout():
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an elite basketball skill development coach building D1-level workouts."
-                },
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response.choices[0].message.content
-
+    # ----------------------------
+    # GENERATE WORKOUT
+    # ----------------------------
     if generate or regen:
         with st.spinner("Building D1 workout..."):
 
-            output = generate_workout()
+            output = generate_workout(prompt)
 
             st.success("Workout Ready 💪")
 
             st.markdown("## 🧱 Your D1 Training Plan")
 
-            st.markdown(f"""
-### 📋 Workout
+            st.markdown("### 📋 Workout")
+            st.text(output)
 
-{output}
+            st.markdown("---")
 
-""")
+            st.info(f"💬 {random.choice(quotes)}")
 
+            # SAVE HISTORY
+            st.session_state.history.append({
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "focus": focus,
+                "workout": output
+            })
 
-
-           st.markdown("## 🧱 Your D1 Training Plan")
-
-st.markdown("### 📋 Workout")
-st.text(output)
-
-st.markdown("---")
-
-st.info(f"💬 {random.choice(quotes)}")
-
-# SAVE HISTORY
-st.session_state.history.append({
-    "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-    "focus": focus,
-    "workout": output
-})
-
-st.download_button(
-    "⬇ Download Workout",
-    output,
-    file_name="d1_workout.txt"
-)
+            st.download_button(
+                "⬇ Download Workout",
+                output,
+                file_name="d1_workout.txt"
+            )
 
 # =========================================================
 # HISTORY TAB
@@ -225,6 +219,8 @@ with plans:
     if st.button("Generate Weekly Plan"):
         with st.spinner("Building weekly plan..."):
 
+            plan_prompt = f"Create a 7-day basketball training plan for: {goal}"
+
             response = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
@@ -232,10 +228,7 @@ with plans:
                         "role": "system",
                         "content": "You are an elite basketball trainer building weekly development plans."
                     },
-                    {
-                        "role": "user",
-                        "content": f"Create a 7-day basketball training plan for: {goal}"
-                    }
+                    {"role": "user", "content": plan_prompt}
                 ]
             )
 
@@ -250,16 +243,7 @@ with plans:
             )
 
 # =========================================================
-# FOOTER MOTIVATION
+# FOOTER
 # =========================================================
 st.markdown("---")
 st.caption(random.choice(quotes))
-
-
-
-
-
-
-
-
-
