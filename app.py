@@ -5,14 +5,56 @@ import random
 import time
 
 # =========================
-# PAGE SETUP
+# PAGE CONFIG (MOBILE FEEL)
 # =========================
-st.set_page_config(page_title="D1 AI Trainer", layout="wide")
+st.set_page_config(
+    page_title="D1 Trainer",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+# =========================
+# STYLE (APP LOOK)
+# =========================
+st.markdown("""
+<style>
+/* background */
+.main {
+    background-color: #0f0f0f;
+}
+
+/* title */
+h1, h2, h3 {
+    color: white;
+}
+
+/* cards */
+div.stContainer {
+    border-radius: 12px;
+}
+
+/* buttons */
+.stButton > button {
+    width: 100%;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    background: linear-gradient(90deg, #ff4b1f, #ff9068);
+    color: white;
+}
+
+/* input fields */
+input, textarea {
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # =========================
-# SESSION STATE SAFE INIT
+# SESSION STATE
 # =========================
 if "user" not in st.session_state:
     st.session_state.user = None
@@ -26,38 +68,30 @@ if "history" not in st.session_state:
 # =========================
 # DATA
 # =========================
-bible_verses = [
-    "Philippians 4:13 — I can do all things through Christ who strengthens me.",
-    "Isaiah 40:31 — Those who hope in the Lord will renew their strength.",
-    "Proverbs 3:5 — Trust in the Lord with all your heart.",
-    "Joshua 1:9 — Be strong and courageous."
-]
+verse = "Philippians 4:13 — I can do all things through Christ who strengthens me."
 
 quotes = [
     "Greatness is built when no one is watching.",
     "Discipline beats motivation every time.",
-    "You don’t rise to talent, you fall to effort.",
-    "Comfort kills progress."
+    "You don’t rise to talent, you fall to effort."
 ]
 
 # =========================
 # LOGIN
 # =========================
 if st.session_state.user is None:
-    st.title("🏀 D1 AI Trainer Login")
+    st.title("🏀 D1 TRAINER")
 
-    username = st.text_input("Enter your name")
+    name = st.text_input("Enter your name")
 
-    if st.button("Enter Training Center"):
-        if username.strip():
-            st.session_state.user = username.strip()
+    if st.button("Enter Gym"):
+        if name.strip():
+            st.session_state.user = name.strip()
 
-            if username not in st.session_state.history:
-                st.session_state.history[username] = []
+            if name not in st.session_state.history:
+                st.session_state.history[name] = []
 
             st.rerun()
-        else:
-            st.warning("Please enter a name")
 
     st.stop()
 
@@ -66,151 +100,162 @@ user = st.session_state.user
 # =========================
 # TABS
 # =========================
-home_tab, workout_tab, history_tab = st.tabs(["🏠 Home", "🏀 Workout", "📊 History"])
+home, workout, history = st.tabs(["🏠 Home", "🏀 Workout", "📊 History"])
 
 # =========================
-# HOME TAB
+# HOME
 # =========================
-with home_tab:
-    st.title("🏀 D1 AI Trainer")
+with home:
+    st.markdown("## 🏀 D1 TRAINER")
 
-    st.subheader("📖 Daily Bible Verse")
-    st.info(random.choice(bible_verses))
+    st.markdown("### 📖 Daily Verse")
+    st.info(verse)
 
-    st.markdown("## 🏀 Build Your Workout")
+    st.markdown("## 🏀 Build Workout")
 
-    focus = st.text_input("What are you working on today?")
+    focus = st.text_input("What are you working on?")
     struggle = st.text_input("What are you struggling with?")
-    time_available = st.selectbox("Time Available", ["45 min", "60 min", "90 min"])
-    court = st.selectbox("Court Type", ["Driveway", "Half Court", "Full Court"])
-    energy = st.slider("Energy Level", 1, 10, 5)
-    body = st.text_input("Body status (sore / injury / tight / none)")
+    body = st.text_input("Body status")
+    time_available = st.selectbox("Time", ["45 min", "60 min", "90 min"])
+    court = st.selectbox("Court", ["Driveway", "Half Court", "Full Court"])
+    energy = st.slider("Energy", 1, 10, 5)
 
     partner = st.selectbox(
-        "Do you have a partner?",
+        "Partner",
         ["No partner", "Rebounding partner", "Live defender partner"]
     )
 
     # =========================
     # WORKOUT GENERATION
     # =========================
-    def build_workout():
-        progress = st.progress(0)
+    def generate():
+        bar = st.progress(0)
 
         for i in range(100):
             time.sleep(0.01)
-            progress.progress(i + 1)
+            bar.progress(i + 1)
 
         prompt = f"""
-You are an elite D1 basketball trainer.
+You are an elite basketball trainer.
 
-PLAYER INFO:
+Make a D1-level workout.
+
+PLAYER:
 Focus: {focus}
 Struggle: {struggle}
+Body: {body}
 Time: {time_available}
 Court: {court}
 Energy: {energy}
-Body: {body}
 Partner: {partner}
 
 RULES:
-- Adapt everything to focus and struggle
-- If injury/sore → reduce intensity + add recovery work
-- Partner must change drill structure
-- Include sets, reps, and timed work (seconds)
-- Explain HOW to do each drill
+- Adapt EVERYTHING to focus + struggle
+- If sore/injury → reduce intensity
+- Partner changes drill structure
+- Include reps, sets, and seconds
+- Explain each drill clearly
 
 FORMAT:
 
-WARM-UP:
-- detailed movement prep
+🔥 WARM-UP (mobility + activation)
 
-SKILL WORK:
-- structured drills with reps + coaching cues
+🏀 SKILL WORK (detailed drills)
 
-PARTNER WORK:
-- adapted to selected partner type
+🤝 PARTNER WORK (based on partner type)
 
-PRESSURE WORK:
-- timed or score-based
+⚡ PRESSURE WORK (timed/scored)
 
-GAME SIMULATION:
-- live decision scenarios
+🏆 GAME SIMULATION
 
-FINISHER:
-- competitive challenge
+🔥 FINISHER
 """
 
-        response = client.chat.completions.create(
+        res = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are an elite NBA skill development trainer."},
+                {"role": "system", "content": "Elite NBA skills trainer."},
                 {"role": "user", "content": prompt}
             ]
         )
 
-        return response.choices[0].message.content
+        return res.choices[0].message.content
 
-    if st.button("🔥 Generate Workout"):
-        with st.spinner("Building your D1 workout..."):
-            workout = build_workout()
-
-            st.session_state.workout = workout
+    if st.button("🔥 GENERATE WORKOUT"):
+        with st.spinner("Building D1 workout..."):
+            st.session_state.workout = generate()
 
             st.session_state.history[user].append({
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "workout": workout
+                "time": datetime.now().strftime("%H:%M"),
+                "workout": st.session_state.workout
             })
 
-            st.success("Workout created! Go to Workout tab 🏀")
+            st.success("Workout ready → Go to Workout tab 🏀")
 
 # =========================
-# WORKOUT TAB (CLEAN UI BOXES)
+# WORKOUT TAB (CLEAN CARDS)
 # =========================
-with workout_tab:
-    st.title("🏀 Your D1 Workout")
+with workout:
+    st.markdown("## 🏀 YOUR WORKOUT")
 
     if not st.session_state.workout:
-        st.info("No workout yet. Generate one from Home.")
+        st.info("No workout yet")
     else:
         sections = st.session_state.workout.split("\n")
 
-        current_section = []
+        box = []
         title = "Workout"
 
-        def render_box(title, content):
-            with st.container():
-                st.markdown(f"### 🧱 {title}")
-                st.markdown("\n".join(content))
-                st.markdown("---")
+        def card(title, content):
+            st.markdown(f"""
+            <div style="
+                background:#1c1c1c;
+                padding:15px;
+                border-radius:12px;
+                margin-bottom:15px;
+                border:1px solid #333;
+                color:white;
+            ">
+            <h3>{title}</h3>
+            <p>{content}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
         for line in sections:
             if any(x in line.lower() for x in ["warm", "skill", "partner", "pressure", "game", "finish"]):
-                if current_section:
-                    render_box(title, current_section)
-                    current_section = []
-                title = line.strip()
+                if box:
+                    card(title, "\n".join(box))
+                    box = []
+                title = line
 
-            current_section.append(line)
+            box.append(line)
 
-        if current_section:
-            render_box(title, current_section)
+        if box:
+            card(title, "\n".join(box))
 
-        st.info(random.choice(quotes))
+        st.markdown(f"### 💬 {random.choice(quotes)}")
 
 # =========================
-# HISTORY TAB
+# HISTORY
 # =========================
-with history_tab:
-    st.title("📊 Workout History")
+with history:
+    st.markdown("## 📊 HISTORY")
 
-    user_history = st.session_state.history.get(user, [])
+    data = st.session_state.history.get(user, [])
 
-    if not user_history:
-        st.info("No workouts yet.")
+    if not data:
+        st.info("No workouts yet")
     else:
-        for w in reversed(user_history):
-            with st.container():
-                st.markdown(f"### 🕒 {w['time']}")
-                st.markdown(w["workout"])
-                st.markdown("---")
+        for w in reversed(data):
+            st.markdown(f"""
+            <div style="
+                background:#111;
+                padding:12px;
+                border-radius:10px;
+                margin-bottom:10px;
+                color:white;
+            ">
+            <b>{w['time']}</b>
+            <pre style="white-space:pre-wrap">{w['workout']}</pre>
+            </div>
+            """, unsafe_allow_html=True)
