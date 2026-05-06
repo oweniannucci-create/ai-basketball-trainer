@@ -2,6 +2,8 @@ import streamlit as st
 from groq import Groq
 from datetime import datetime
 import random
+import time
+import re
 
 # ----------------------------
 # PAGE SETUP
@@ -13,22 +15,15 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 # ----------------------------
 # SESSION STATE
 # ----------------------------
-if "history" not in st.session_state:
-    st.session_state.history = []
-
 if "workout" not in st.session_state:
     st.session_state.workout = None
+
+if "history" not in st.session_state:
+    st.session_state.history = []
 
 # ----------------------------
 # DATA
 # ----------------------------
-bible_verses = [
-    "Philippians 4:13 — I can do all things through Christ who strengthens me.",
-    "Isaiah 40:31 — Those who hope in the Lord will renew their strength.",
-    "Proverbs 3:5 — Trust in the Lord with all your heart.",
-    "Joshua 1:9 — Be strong and courageous."
-]
-
 quotes = [
     "Greatness is built when no one is watching.",
     "Discipline beats motivation every time.",
@@ -43,28 +38,45 @@ def generate_workout(prompt):
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
-            {
-                "role": "system",
-                "content": "You are an elite D1 basketball skill development coach."
-            },
+            {"role": "system", "content": "You are an elite D1 basketball skill trainer."},
             {"role": "user", "content": prompt}
         ]
     )
     return response.choices[0].message.content
 
 
-def workout_card(title, text):
+def extract_sections(text):
+    """
+    Turns AI output into clean sections like:
+    Warm-Up, Skill Work, etc.
+    """
+    pattern = r"(Warm[- ]?Up|Skill Work|Pressure Work|Game Simulation|Challenge|Coaching Cues)"
+    parts = re.split(pattern, text)
+
+    sections = []
+
+    i = 1
+    while i < len(parts) - 1:
+        title = parts[i].strip()
+        content = parts[i + 1].strip()
+        sections.append((title, content))
+        i += 2
+
+    return sections
+
+
+def section_card(title, content):
     st.markdown(
         f"""
         <div style="
-            background-color:#111;
-            padding:15px;
+            background:#111;
+            padding:16px;
             border-radius:12px;
             margin-bottom:12px;
             border:1px solid #333;
         ">
-            <h4 style="color:white;">{title}</h4>
-            <pre style="white-space:pre-wrap; color:#ddd;">{text}</pre>
+            <h3 style="color:white;">{title}</h3>
+            <p style="color:#ddd; white-space:pre-wrap;">{content}</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -73,87 +85,96 @@ def workout_card(title, text):
 # ----------------------------
 # UI
 # ----------------------------
-home_tab, workout_tab, history_tab = st.tabs(["🏠 Home", "🏀 Workout", "📊 History"])
+home, workout, history = st.tabs(["🏠 Home", "🏀 Workout", "📊 History"])
 
 # =========================================================
-# HOME TAB
+# HOME
 # =========================================================
-with home_tab:
+with home:
     st.title("🏀 D1 AI Trainer")
-
-    st.info(random.choice(bible_verses))
-
-    st.subheader("Build Your Workout")
 
     focus = st.text_input("🎯 Focus")
     energy = st.slider("⚡ Energy", 1, 10, 5)
     difficulty = st.slider("🔥 Difficulty", 1, 10, 5)
 
-    time = st.selectbox("⏱ Time", ["45 min", "60 min", "90 min"])
+    time_available = st.selectbox("⏱ Time", ["45 min", "60 min", "90 min"])
     court = st.selectbox("🏀 Court", ["Driveway", "Half Court", "Full Court"])
 
-    body = st.text_input("🦵 Body status (sore/injured/etc)")
+    body = st.text_input("🦵 Body status")
     partner = st.radio("🤝 Partner?", ["No", "Yes"])
 
     st.markdown("---")
 
-    if st.button("🔥 Build Workout"):
+    if st.button("🔥 Generate Workout"):
+
         prompt = f"""
 Create a D1 basketball workout.
 
 Focus: {focus}
 Energy: {energy}/10
 Difficulty: {difficulty}/10
-Time: {time}
+Time: {time_available}
 Court: {court}
-Body status: {body}
+Body: {body}
 Partner: {partner}
 
-Rules:
-- Include warm-up, skill, pressure, game simulation
-- If partner = Yes, include 1v1 / reactive drills
-- If body is sore/injured, reduce load + add recovery work
-- Include LIVE READ drill
-- Make it realistic and intense
+FORMAT MUST INCLUDE HEADERS:
+Warm-Up
+Skill Work
+Pressure Work
+Game Simulation
+Challenge
+Coaching Cues
+
+If partner = Yes, include 1v1 or reactive drills.
+If body is sore/injured, reduce load and add recovery work.
 """
+
+        # 🔄 LOADING BAR
+        progress = st.progress(0)
+        for i in range(100):
+            time.sleep(0.01)
+            progress.progress(i + 1)
 
         st.session_state.workout = generate_workout(prompt)
 
-        st.success("Workout created 💪 Go to Workout tab")
+        st.success("Workout Created 💪 Go to Workout Tab")
 
 # =========================================================
 # WORKOUT TAB
 # =========================================================
-with workout_tab:
-    st.title("🏀 Your Workout")
+with workout:
+    st.title("🏀 Your D1 Workout")
 
     if st.session_state.workout:
 
-        workout = st.session_state.workout
+        sections = extract_sections(st.session_state.workout)
 
-        # Split into sections if numbered
-        sections = workout.split("\n")
+        # If parsing fails, just show full text
+        if not sections:
+            st.markdown("### Full Workout")
+            st.write(st.session_state.workout)
 
-        for i, line in enumerate(sections):
-            if line.strip():
-                workout_card(f"Drill {i+1}", line)
+        else:
+            for title, content in sections:
+                section_card(title, content)
 
         st.download_button(
             "⬇ Download Workout",
-            workout,
+            st.session_state.workout,
             file_name="d1_workout.txt"
         )
 
         st.info(random.choice(quotes))
 
     else:
-        st.warning("No workout yet. Go to Home and build one.")
+        st.warning("No workout yet. Go to Home and generate one.")
 
 # =========================================================
 # HISTORY TAB
 # =========================================================
-with history_tab:
-    st.title("📊 Workout History")
+with history:
+    st.title("📊 History")
 
     if st.session_state.workout:
         st.session_state.history.append({
@@ -161,16 +182,12 @@ with history_tab:
             "workout": st.session_state.workout
         })
 
-    if len(st.session_state.history) == 0:
+    if not st.session_state.history:
         st.info("No workouts yet.")
     else:
-        for i, w in enumerate(reversed(st.session_state.history)):
+        for w in reversed(st.session_state.history):
             st.markdown(f"### 🕒 {w['time']}")
-
-            # SAFE CARD (NO text_area = NO duplicate errors)
-            workout_card("Workout", w.get("workout", ""))
-
-            st.markdown("---")
+            section_card("Workout", w.get("workout", ""))
 
 # ----------------------------
 # FOOTER
