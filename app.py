@@ -85,7 +85,7 @@ FORMAT:
 
         try:
             response = client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="mixtral-8x7b-32768",
                 messages=[
                     {
                         "role": "system",
