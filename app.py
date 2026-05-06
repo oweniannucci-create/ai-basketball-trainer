@@ -1,10 +1,10 @@
 import streamlit as st
 from groq import Groq
 
-# Page setup (mobile friendly)
+# Page setup
 st.set_page_config(page_title="AI Hooper Trainer", layout="centered")
 
-# API
+# API client
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # Header
@@ -20,8 +20,8 @@ focus = st.text_input("🎯 What are you working on today?")
 time = st.selectbox("⏱ Time Available", ["45–60 minutes", "60–90 minutes"])
 court = st.selectbox("🏀 Court Type", ["Driveway", "Half Court", "Full Court"])
 energy = st.selectbox("⚡ Energy Level", ["Low", "Medium", "High"])
-struggle = st.text_input("📉 What have you been struggling with?")
-body = st.text_input("🦵 Body Status (sore, tight, pain?)")
+struggle = st.text_input("📉 Struggle (keep it short)")
+body = st.text_input("🦵 Body Status (optional, short)")
 
 st.divider()
 
@@ -45,23 +45,14 @@ if partner == "Yes":
 
 st.divider()
 
-# --- GENERATE BUTTON ---
+# --- GENERATE ---
 if st.button("🔥 Generate Workout"):
 
-    with st.spinner("Building your workout..."):
+    # Build prompt (kept cleaner + safer)
+    prompt = f"""
+Create an elite basketball workout for a high school player.
 
-        prompt = f"""
-You are an elite basketball skill development trainer building workouts for serious high school players trying to reach the college level.
-
-Your workouts must:
-- Be game-speed and realistic
-- Include pressure and decision-making
-- Include at least ONE LIVE READ DRILL
-- Adapt to partner availability
-- Include mobility if body soreness is mentioned
-- Be mobile-friendly and easy to follow
-
-USER INPUT:
+USER INFO:
 Focus: {focus}
 Time: {time}
 Court: {court}
@@ -72,39 +63,49 @@ Partner: {partner}
 Partner Time: {partner_time}
 Partner Role: {partner_role}
 
-WORKOUT RULES:
-- Warm-up must include dynamic movement + mobility if needed
-- Skill work must match goal complexity
-- Include:
-  • Must-make drills
-  • Countdown pressure drills
-  • Game-winner scenarios
-- Include at least one LIVE READ DRILL (decision-making)
-- Include “Search:” for every drill
+RULES:
+- Game-speed only
+- Must include decision-making (LIVE READ DRILL)
+- Include pressure situations
+- Include must-make shooting drills
+- Keep it simple and structured
+- Add coaching cues
+- If body is sore, include mobility warm-up
 
 FORMAT:
-Keep everything clean, short, and mobile-friendly.
-
-SECTIONS:
 1. Warm-Up
 2. Skill Work
-3. Pressure Section
+3. Pressure Work
 4. Game Simulation
 5. Challenge
 6. Coaching Cues
-7. Progress Tracker
 """
 
-        response = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=[{"role": "user", "content": prompt}]
-        )
+    with st.spinner("Building your workout..."):
 
-        output = response.choices[0].message.content
-        st.write(output)
+        try:
+            response = client.chat.completions.create(
+                model="llama3-8b-8192",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an elite basketball skill development trainer who builds simple, high-intensity, game-realistic workouts for serious high school athletes."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
 
-        st.success("Workout Ready 💪")
-        st.markdown(response.choices[0].message.content)
+            output = response.choices[0].message.content
+
+            st.success("Workout Ready 💪")
+            st.write(output)
+
+        except Exception as e:
+            st.error("Something went wrong with the AI request.")
+            st.code(str(e))
 
 st.divider()
 st.caption("Built for serious hoopers. Stay consistent.")
