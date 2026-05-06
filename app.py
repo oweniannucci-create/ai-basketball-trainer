@@ -22,11 +22,11 @@ if "preset" not in st.session_state:
 if "archetype" not in st.session_state:
     st.session_state.archetype = "Kobe (Mamba Mentality)"
 
-if "go_to_workout" not in st.session_state:
-    st.session_state.go_to_workout = False
-
 if "generated_workout" not in st.session_state:
     st.session_state.generated_workout = None
+
+if "tab" not in st.session_state:
+    st.session_state.tab = "Home"
 
 # ----------------------------
 # DATA
@@ -45,14 +45,22 @@ quotes = [
     "Comfort kills progress."
 ]
 
-tabs = st.tabs(["🏠 Home", "🏀 Workout", "📊 History", "📅 Weekly Plan"])
+# ----------------------------
+# AUTO TAB SWITCH
+# ----------------------------
+def go_to_workout_tab():
+    st.session_state.tab = "Workout"
 
-home, workout, history, plans = tabs
+# ----------------------------
+# TABS
+# ----------------------------
+tabs = st.tabs(["🏠 Home", "🏀 Workout", "📊 History", "📅 Weekly Plan"])
+home_tab, workout_tab, history_tab, plan_tab = tabs
 
 # =========================================================
 # HOME TAB
 # =========================================================
-with home:
+with home_tab:
     st.title("🏀 D1 AI Trainer")
 
     st.subheader("📖 Daily Bible Verse")
@@ -64,55 +72,57 @@ with home:
 
     def set_preset(value):
         st.session_state.preset = value
-        st.session_state.go_to_workout = True
+        go_to_workout_tab()
 
     with c1:
-        if st.button("🔥 Scoring Workout"):
-            set_preset("Scoring")
+        st.button("🔥 Scoring Workout", on_click=set_preset, args=("Scoring",))
 
     with c2:
-        if st.button("🏹 Shooting Workout"):
-            set_preset("Shooting")
+        st.button("🏹 Shooting Workout", on_click=set_preset, args=("Shooting",))
 
     with c3:
-        if st.button("💪 Explosiveness"):
-            set_preset("Explosiveness")
+        st.button("💪 Explosiveness", on_click=set_preset, args=("Explosiveness",))
 
     st.markdown("---")
 
     st.subheader("👤 Player Archetype")
 
-    archetype = st.selectbox(
+    st.session_state.archetype = st.selectbox(
         "Choose style",
-        ["Kobe (Mamba Mentality)", "Curry (Shooter)", "Ja Morant (Explosive)", "LeBron (All-Around)"]
+        ["Kobe (Mamba Mentality)", "Curry (Shooter)", "Ja Morant (Explosive)", "LeBron (All-Around)"],
+        on_change=go_to_workout_tab
     )
-    st.session_state.archetype = archetype
-
-    st.success("Tip: Select preset or archetype → go to Workout tab")
 
 # =========================================================
 # WORKOUT TAB
 # =========================================================
-with workout:
+with workout_tab:
     st.title("🏀 Build Your D1 Workout")
 
-    focus = st.text_input("🎯 Focus", value=st.session_state.preset)
+    col1, col2 = st.columns(2)
 
-    energy = st.slider("⚡ Energy Level", 1, 10, 5)
-    difficulty = st.slider("🔥 Difficulty", 1, 10, 5)
+    with col1:
+        focus = st.text_input("🎯 Focus", value=st.session_state.preset)
+        energy = st.slider("⚡ Energy Level", 1, 10, 5)
+        difficulty = st.slider("🔥 Difficulty", 1, 10, 5)
 
-    time = st.selectbox("⏱ Time", ["45 min", "60 min", "90 min"])
-    court = st.selectbox("🏀 Court", ["Driveway", "Half Court", "Full Court"])
+    with col2:
+        time = st.selectbox("⏱ Time", ["45 min", "60 min", "90 min"])
+        court = st.selectbox("🏀 Court", ["Driveway", "Half Court", "Full Court"])
+        partner = st.selectbox("🤝 Partner", ["No", "Yes"])
 
-    partner = st.selectbox("🤝 Partner?", ["No", "Yes"])
-    injury = st.text_input("🦵 Body Status (sore, tight, injury?)")
+    st.markdown("### 🧠 Body Status")
+
+    body = st.text_input("Any pain, soreness, or tightness?")
 
     st.markdown("---")
 
     generate = st.button("🔥 Generate Workout")
 
-    def generate_workout():
-        prompt = f"""
+    if generate:
+        with st.spinner("Building your D1 workout..."):
+
+            prompt = f"""
 You are an elite D1 basketball trainer.
 
 PLAYER INFO:
@@ -123,116 +133,124 @@ Time: {time}
 Court: {court}
 Archetype: {st.session_state.archetype}
 Partner: {partner}
-Body Status: {injury}
+Body Status: {body}
 
 RULES:
-- If partner = Yes → add competitive 1v1 / reaction drills
-- If injury/sore → reduce jumping, add recovery + mobility
-- Must include LIVE READ decision drill
-- Must feel like D1 training + TikTok engaging
+- Adjust if injured or sore
+- If partner = Yes, include 1v1 or live reads
+- Must include LIVE READ drill
 - Must include pressure situations
+- Must be game realistic
 
 FORMAT:
-1. Warm-Up
-2. Skill Work
-3. Pressure Work
-4. Game Simulation
-5. Challenge
-6. Coaching Cues
+Break into sections:
+Warm-Up
+Skill Work
+Pressure Work
+Game Simulation
+Challenge
+Coaching Cues
 """
-        res = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": "You are an elite basketball trainer."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return res.choices[0].message.content
 
-    if generate:
-        with st.spinner("Building your D1 workout..."):
-            workout_text = generate_workout()
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are an elite basketball trainer."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            output = response.choices[0].message.content
 
             st.session_state.generated_workout = {
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "focus": focus,
                 "archetype": st.session_state.archetype,
-                "text": workout_text
+                "output": output
             }
 
             st.session_state.history.append(st.session_state.generated_workout)
 
-            st.session_state.go_to_workout = True
+            go_to_workout_tab()
 
-# ----------------------------
-# AUTO SWITCH TAB LOGIC
-# ----------------------------
-if st.session_state.go_to_workout:
-    st.session_state.go_to_workout = False
-    st.rerun()
+            st.success("Workout created! Go to Workout tab 👇")
 
 # =========================================================
-# SHOW CURRENT WORKOUT (CARD STYLE)
+# DISPLAY WORKOUT (CLEAN CARD UI)
 # =========================================================
-with workout:
+with workout_tab:
+
     if st.session_state.generated_workout:
+
         w = st.session_state.generated_workout
 
-        st.success("Workout Created ✅ Go to this tab anytime to review it.")
+        st.markdown("## 🧱 Your D1 Training Plan")
 
-        st.markdown("### 🧱 Workout Card")
+        st.container().markdown(f"""
+### 🎯 Focus
+{w['focus']}
 
-        st.container(border=True)
-        st.markdown(f"**Focus:** {w['focus']}")
-        st.markdown(f"**Archetype:** {w['archetype']}")
-        st.markdown(f"**Time:** {w['time']}")
+### 👤 Archetype
+{w['archetype']}
 
-        st.markdown("---")
+### 🕒 Time
+{w['time']}
+""")
 
-        st.text(w["text"])
+        st.markdown("### 📋 Workout")
 
-        st.info(random.choice(quotes))
+        st.info(w["output"])
+
+        st.download_button(
+            "⬇ Download Workout",
+            w["output"],
+            file_name="d1_workout.txt"
+        )
 
 # =========================================================
 # HISTORY TAB
 # =========================================================
-with history:
+with history_tab:
     st.title("📊 Workout History")
 
     if not st.session_state.history:
         st.info("No workouts yet.")
     else:
         for i, w in enumerate(reversed(st.session_state.history)):
-            with st.container(border=True):
-                st.markdown(f"### 🕒 {w['time']}")
-                st.markdown(f"**Focus:** {w['focus']}")
-                st.markdown(f"**Archetype:** {w['archetype']}")
 
-                st.text_area(
-                    "Workout",
-                    w["text"],
-                    height=250,
-                    key=f"history_{i}"
-                )
+            with st.container():
+                st.markdown(f"### 🕒 {w.get('time','')}")
+                st.write(f"**Focus:** {w.get('focus','')}")
+                st.write(f"**Archetype:** {w.get('archetype','')}")
+                st.info(w.get("output",""))
+                st.markdown("---")
 
 # =========================================================
 # WEEKLY PLAN TAB
 # =========================================================
-with plans:
+with plan_tab:
     st.title("📅 Weekly Plan")
 
-    goal = st.text_input("What is your goal?")
+    goal = st.text_input("Weekly Goal")
 
     if st.button("Generate Plan"):
-        res = client.chat.completions.create(
+        response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a basketball coach."},
-                {"role": "user", "content": f"Create 7 day plan for: {goal}"}
+                {"role": "system", "content": "Build elite basketball weekly plans"},
+                {"role": "user", "content": f"Create 7-day plan for: {goal}"}
             ]
         )
 
-        st.text(res.choices[0].message.content)
+        plan = response.choices[0].message.content
+
+        st.write(plan)
+
+        st.download_button(
+            "⬇ Download Plan",
+            plan,
+            file_name="weekly_plan.txt"
+        )
 
 # =========================================================
 # FOOTER
