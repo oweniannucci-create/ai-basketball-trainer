@@ -2,7 +2,6 @@ import streamlit as st
 from groq import Groq
 from datetime import datetime
 import random
-import re
 
 # ----------------------------
 # PAGE SETUP
@@ -19,9 +18,6 @@ if "history" not in st.session_state:
 
 if "workout" not in st.session_state:
     st.session_state.workout = None
-
-if "active_tab" not in st.session_state:
-    st.session_state.active_tab = "home"
 
 # ----------------------------
 # DATA
@@ -43,10 +39,6 @@ quotes = [
 # ----------------------------
 # HELPERS
 # ----------------------------
-def parse_workout(text):
-    sections = re.split(r"\n(?=\d\.)", text)
-    return sections
-
 def generate_workout(prompt):
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -60,18 +52,36 @@ def generate_workout(prompt):
     )
     return response.choices[0].message.content
 
+
+def workout_card(title, text):
+    st.markdown(
+        f"""
+        <div style="
+            background-color:#111;
+            padding:15px;
+            border-radius:12px;
+            margin-bottom:12px;
+            border:1px solid #333;
+        ">
+            <h4 style="color:white;">{title}</h4>
+            <pre style="white-space:pre-wrap; color:#ddd;">{text}</pre>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 # ----------------------------
-# TABS
+# UI
 # ----------------------------
 home_tab, workout_tab, history_tab = st.tabs(["🏠 Home", "🏀 Workout", "📊 History"])
 
 # =========================================================
-# HOME
+# HOME TAB
 # =========================================================
 with home_tab:
     st.title("🏀 D1 AI Trainer")
 
-    st.info(f"📖 {random.choice(bible_verses)}")
+    st.info(random.choice(bible_verses))
 
     st.subheader("Build Your Workout")
 
@@ -82,10 +92,8 @@ with home_tab:
     time = st.selectbox("⏱ Time", ["45 min", "60 min", "90 min"])
     court = st.selectbox("🏀 Court", ["Driveway", "Half Court", "Full Court"])
 
-    struggle = st.text_input("📉 Struggle (optional)")
-    body = st.text_input("🦵 Body status (optional)")
-
-    partner = st.radio("🤝 Partner today?", ["No", "Yes"])
+    body = st.text_input("🦵 Body status (sore/injured/etc)")
+    partner = st.radio("🤝 Partner?", ["No", "Yes"])
 
     st.markdown("---")
 
@@ -93,69 +101,53 @@ with home_tab:
         prompt = f"""
 Create a D1 basketball workout.
 
-Player Info:
 Focus: {focus}
 Energy: {energy}/10
 Difficulty: {difficulty}/10
 Time: {time}
 Court: {court}
-Struggle: {struggle}
-Body: {body}
+Body status: {body}
 Partner: {partner}
 
 Rules:
-- Include warm-up, skill work, pressure, game simulation
-- If partner = Yes, include 1v1 or reactive drills
-- If body says sore/injured, include recovery + reduced load
-- Must include LIVE READ drill
-- Make it game realistic
-
-Format clearly with numbered sections.
+- Include warm-up, skill, pressure, game simulation
+- If partner = Yes, include 1v1 / reactive drills
+- If body is sore/injured, reduce load + add recovery work
+- Include LIVE READ drill
+- Make it realistic and intense
 """
 
         st.session_state.workout = generate_workout(prompt)
 
-        st.session_state.active_tab = "workout"
-        st.rerun()
+        st.success("Workout created 💪 Go to Workout tab")
 
 # =========================================================
 # WORKOUT TAB
 # =========================================================
 with workout_tab:
-    st.title("🏀 Your D1 Workout")
+    st.title("🏀 Your Workout")
 
     if st.session_state.workout:
 
-        st.success("Workout Generated 💪")
+        workout = st.session_state.workout
 
-        sections = parse_workout(st.session_state.workout)
+        # Split into sections if numbered
+        sections = workout.split("\n")
 
-        for i, sec in enumerate(sections):
-            st.markdown(
-                f"""
-                <div style="
-                    background-color:#111;
-                    padding:15px;
-                    border-radius:12px;
-                    margin-bottom:10px;
-                    border:1px solid #333;
-                ">
-                {sec}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        for i, line in enumerate(sections):
+            if line.strip():
+                workout_card(f"Drill {i+1}", line)
 
         st.download_button(
             "⬇ Download Workout",
-            st.session_state.workout,
+            workout,
             file_name="d1_workout.txt"
         )
 
         st.info(random.choice(quotes))
 
     else:
-        st.warning("No workout yet. Go to Home and generate one.")
+        st.warning("No workout yet. Go to Home and build one.")
 
 # =========================================================
 # HISTORY TAB
@@ -172,9 +164,12 @@ with history_tab:
     if len(st.session_state.history) == 0:
         st.info("No workouts yet.")
     else:
-        for w in reversed(st.session_state.history):
+        for i, w in enumerate(reversed(st.session_state.history)):
             st.markdown(f"### 🕒 {w['time']}")
-            st.text_area("Workout", w.get("workout", ""), height=250)
+
+            # SAFE CARD (NO text_area = NO duplicate errors)
+            workout_card("Workout", w.get("workout", ""))
+
             st.markdown("---")
 
 # ----------------------------
