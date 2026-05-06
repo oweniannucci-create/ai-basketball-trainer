@@ -174,7 +174,7 @@ FORMAT:
 
 """)
 
-""")
+
 
            st.markdown("## 🧱 Your D1 Training Plan")
 
